@@ -1,4 +1,4 @@
-module gitlab.maxiv.lu.se/kits-maxiv/war
+module github.com/doctordesh/war
 
 go 1.14
 
