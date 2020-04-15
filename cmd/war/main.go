@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"gitlab.maxiv.lu.se/kits-maxiv/war"
+	"github.com/doctordesh/war"
 )
 
 func main() {
