@@ -3,17 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/doctordesh/war"
+	"github.com/doctordesh/war/colors"
 )
 
 func main() {
+
 	var delay int
 	var match, exclude string
-	var verbose bool
+	var verbose, boring bool
 
 	flag.Usage = func() {
 		fmt.Println("Usage: war [options] <command-to-run>")
@@ -23,24 +24,28 @@ func main() {
 	flag.IntVar(&delay, "delay", 100, "Time in milliseconds before running command. Events within the delay will reset the delay")
 	flag.StringVar(&match, "match", "*", "Match files, separate with comma")
 	flag.StringVar(&exclude, "exclude", "", "Pattern to exclude files, separate with comma")
-	flag.BoolVar(&verbose, "verbose", false, "Verbose log output")
+	flag.BoolVar(&verbose, "verbose", false, "Verbose output")
+	flag.BoolVar(&boring, "boring", false, "Boring (no colors) output")
 
 	flag.Parse()
 
+	colors.SetColoring(!boring)
+
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Println("missing <command> argument")
+		colors.Red("missing <command> argument")
 		flag.Usage()
 		os.Exit(2)
 	}
 
 	if len(args) > 1 {
-		fmt.Printf("warning: ignores arguments '%v'\n", strings.Join(args[1:], "', '"))
+		colors.Yellow("ignores arguments '%v'", strings.Join(args[1:], "', '"))
 	}
 
 	path, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("could not find current working directory: %v", err)
+		colors.Red("could not find current working directory: %v", err)
+		os.Exit(2)
 	}
 
 	matches := splitAndTrim(match)
@@ -51,7 +56,8 @@ func main() {
 
 	err = w.WatchAndRun()
 	if err != nil {
-		log.Fatal(err)
+		colors.Red("could not start war: %v", err)
+		os.Exit(2)
 	}
 }
 

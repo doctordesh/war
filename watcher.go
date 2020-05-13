@@ -3,11 +3,11 @@ package war
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/doctordesh/war/colors"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -49,8 +49,10 @@ func (w *watcher) Watch() (<-chan string, error) {
 
 	if w.verbose {
 		for _, d := range dirs {
-			log.Printf("watcher - watching %s", d)
+			colors.Blue("watching %s", d)
 		}
+	} else {
+		colors.Blue("watching %s", w.directory)
 	}
 
 	go func() {
@@ -58,11 +60,8 @@ func (w *watcher) Watch() (<-chan string, error) {
 			select {
 			case event, ok := <-notify.Events:
 				if !ok {
-					log.Fatal("watcher - could not read events")
-				}
-
-				if w.verbose {
-					log.Printf("watcher - event: %s", event)
+					colors.Red("unexpected error from notifier, could not read events")
+					os.Exit(2)
 				}
 
 				// Not interested in chmods
@@ -80,6 +79,9 @@ func (w *watcher) Watch() (<-chan string, error) {
 					continue
 				}
 
+				// Extract filename relative to root watching directory
+				filename := strings.Replace(event.Name, w.directory+"/", "", -1)
+
 				// Dir, add to watchers
 				if w.isDir(event.Name) {
 
@@ -94,10 +96,11 @@ func (w *watcher) Watch() (<-chan string, error) {
 					}
 
 					// Add the new dir to the paths that we watch
-					log.Printf("watcher - watching %s", event.Name)
+					colors.Blue("new directory detected %s", filename)
 					err = notify.Add(event.Name)
 					if err != nil {
-						log.Fatalf("watcher - could not add %s to notifier: %v", event.Name, err)
+						colors.Red("could not add %s to notifier: %v", filename, err)
+						os.Exit(2)
 					}
 
 					continue
@@ -107,15 +110,13 @@ func (w *watcher) Watch() (<-chan string, error) {
 					continue
 				}
 
-				filename := strings.Replace(event.Name, w.directory+"/", "", -1)
+				colors.Blue("file changed: %s", filename)
+
 				c <- filename
 
-			case err, ok := <-notify.Errors:
-				if !ok {
-					log.Fatal("watcher - could not read errors")
-				}
-
-				log.Printf("watcher - error: %v", err)
+			case err, _ := <-notify.Errors:
+				colors.Red("unexpected error from notifier: %v", err)
+				os.Exit(2)
 			}
 		}
 	}()

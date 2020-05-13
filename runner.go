@@ -1,11 +1,14 @@
 package war
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/doctordesh/war/colors"
 )
 
 type runner struct {
@@ -41,14 +44,11 @@ func (r *runner) Run(c <-chan string) {
 		time.Sleep(time.Millisecond)
 
 		select {
-		case filename, ok := <-c:
+		case _, ok := <-c:
 			if !ok {
-				log.Printf("runner - event channel closed. quitting...")
+				colors.Blue("event channel closed. quitting...")
 				return
 			}
-			// event arrived
-			log.Printf("runner - file %s changed", filename)
-
 			shouldRun = true
 			timeSinceLastEvent = 0
 		default:
@@ -89,10 +89,11 @@ func (r *runner) run() {
 	cmd.Stdout = os.Stdout
 	err := cmd.Run()
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			log.Printf("runner - command %s exited with error: %v", r.cmd, exitError)
-		} else {
-			log.Fatalf("runner - could not run %s: %v", r.cmd, err)
-		}
+		colors.Red("command '%s' exited with error: %v", r.cmd, err)
+	} else {
+		colors.Green("command '%s' successfull", r.cmd)
 	}
+
+	// Extra line between calls, helps with when skimming
+	fmt.Println()
 }
