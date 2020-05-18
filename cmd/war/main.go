@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/doctordesh/war"
 	"github.com/doctordesh/war/colors"
@@ -20,12 +21,13 @@ var usage = func() {
 
 func main() {
 	// flag variables
-	var delay int
+	var delay, timeout int
 	var match, exclude string
 	var verbose, boring bool
 
 	// setup flags
 	flag.IntVar(&delay, "delay", 100, "Time in milliseconds before running command. Events within the delay will reset the delay")
+	flag.IntVar(&timeout, "timeout", 10, "Time in seconds for when WAR will kill the command")
 	flag.StringVar(&match, "match", "*", "Match files, separate with comma")
 	flag.StringVar(&exclude, "exclude", "", "Pattern to exclude files, separate with comma")
 	flag.BoolVar(&verbose, "verbose", false, "Verbose output")
@@ -64,7 +66,7 @@ func main() {
 	excludes := splitAndTrim(exclude)
 
 	// Build program
-	w := war.New(path, matches, excludes, args[0], os.Environ(), delay)
+	w := war.New(path, matches, excludes, args[0], os.Environ(), delay, time.Second*time.Duration(timeout))
 	w.Verbose = verbose
 
 	// Setup signals

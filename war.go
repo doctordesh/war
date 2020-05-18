@@ -1,5 +1,7 @@
 package war
 
+import "time"
+
 type watchAndRun struct {
 	watcher Watcher
 	runner  Runner
@@ -7,9 +9,9 @@ type watchAndRun struct {
 	Verbose bool
 }
 
-func New(directory string, match []string, exclude []string, commandString string, env []string, delay int) *watchAndRun {
+func New(directory string, match []string, exclude []string, commandString string, env []string, delay int, timeout time.Duration) *watchAndRun {
 	w := NewWatcher(directory, match, exclude)
-	r := NewRunner(commandString, env, delay)
+	r := NewRunner(commandString, env, delay, timeout)
 	return &watchAndRun{w, r, false}
 }
 

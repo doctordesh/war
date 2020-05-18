@@ -1,6 +1,7 @@
 package war
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ type runner struct {
 	cmd     string
 	env     []string
 	delay   int
+	timeout time.Duration
 	verbose bool
 }
 
@@ -23,8 +25,8 @@ type Runner interface {
 	Run(c <-chan string)
 }
 
-func NewRunner(cmd string, env []string, delay int) Runner {
-	return &runner{cmd, env, delay, false}
+func NewRunner(cmd string, env []string, delay int, timeout time.Duration) Runner {
+	return &runner{cmd, env, delay, timeout, false}
 }
 
 func (r *runner) Run(c <-chan string) {
@@ -82,16 +84,25 @@ func (r *runner) SetVerboseLogging(b bool) {
 
 func (r *runner) run() {
 	parts := strings.Split(r.cmd, " ")
-	cmd := exec.Command(parts[0], parts[1:]...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
 
 	cmd.Env = append(cmd.Env, r.env...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
+
+	colors.Blue("running '%s'", r.cmd)
+
 	err := cmd.Run()
-	if err != nil {
-		colors.Red("command '%s' exited with error: %v", r.cmd, err)
+	if ctx.Err() == context.DeadlineExceeded {
+		colors.Red("command took too long (%d s timeout), killed", r.timeout/time.Second)
+	} else if err != nil {
+		colors.Red("command exited with error: %v", err)
 	} else {
-		colors.Green("command '%s' successfull", r.cmd)
+		colors.Green("command successfull")
 	}
 
 	// Extra line between calls, helps with when skimming
