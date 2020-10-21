@@ -35,7 +35,6 @@ func New(directory string, match []string, exclude []string, commandString strin
 
 func (w *watchAndRun) WatchAndRun() error {
 	w.watcher.SetVerboseLogging(w.Verbose)
-	w.runner.SetVerboseLogging(w.Verbose)
 
 	c, err := w.watcher.Watch()
 	if err != nil {
