@@ -28,8 +28,8 @@ func main() {
 	// setup flags
 	flag.IntVar(&delay, "delay", 100, "Time in milliseconds before running command. Events within the delay will reset the delay")
 	flag.IntVar(&timeout, "timeout", 10, "Time in seconds for when WAR will kill the command")
-	flag.StringVar(&match, "match", "*", "Match files, separate with comma")
-	flag.StringVar(&exclude, "exclude", "", "Pattern to exclude files, separate with comma")
+	// flag.StringVar(&match, "match", "*", "Match files, separate with comma")
+	// flag.StringVar(&exclude, "exclude", "", "Pattern to exclude files, separate with comma")
 	flag.BoolVar(&verbose, "verbose", false, "Verbose output")
 	flag.BoolVar(&boring, "boring", false, "Boring (no colors) output")
 
