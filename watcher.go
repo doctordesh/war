@@ -65,7 +65,7 @@ func (w *watcher) Watch() (<-chan string, error) {
 				}
 
 				// Not interested in chmods
-				if event.Op&fsnotify.Chmod == fsnotify.Chmod {
+				if event.Op == fsnotify.Chmod {
 					continue
 				}
 
