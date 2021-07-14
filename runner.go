@@ -39,6 +39,9 @@ func (r *runner) Run(c <-chan string) {
 	timeSinceLastEvent := 0
 	ds := 0
 
+	doneChan := make(chan struct{})
+	running := false
+
 	for {
 
 		ds = now()
@@ -46,15 +49,20 @@ func (r *runner) Run(c <-chan string) {
 		time.Sleep(time.Millisecond)
 
 		select {
-		case _, ok := <-c:
+		case filename, ok := <-c:
 			if !ok {
 				colors.Blue("event channel closed. quitting...")
 				return
 			}
+			if running {
+				continue
+			}
 			shouldRun = true
 			timeSinceLastEvent = 0
+			colors.Blue("file changed: %s", filename)
+		case <-doneChan:
+			running = false
 		default:
-
 			if shouldRun == false {
 				continue
 			}
@@ -71,7 +79,12 @@ func (r *runner) Run(c <-chan string) {
 				log.Println("runner - delay triggered, running")
 			}
 
-			r.run()
+			running = true
+			go func() {
+				r.run()
+				doneChan <- struct{}{}
+			}()
+
 			shouldRun = false
 			timeSinceLastEvent = 0
 		}

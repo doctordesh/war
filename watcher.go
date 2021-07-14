@@ -110,8 +110,6 @@ func (w *watcher) Watch() (<-chan string, error) {
 					continue
 				}
 
-				colors.Blue("file changed: %s", filename)
-
 				c <- filename
 
 			case err, _ := <-notify.Errors:
