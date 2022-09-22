@@ -20,12 +20,7 @@ type runner struct {
 	verbose bool
 }
 
-type Runner interface {
-	SetVerboseLogging(bool)
-	Run(c <-chan string)
-}
-
-func NewRunner(cmd string, env []string, delay int, timeout time.Duration) Runner {
+func NewRunner(cmd string, env []string, delay int, timeout time.Duration) *runner {
 	return &runner{cmd, env, delay, timeout, false}
 }
 

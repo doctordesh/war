@@ -1,10 +1,12 @@
 package war
 
-import "time"
+import (
+	"time"
+)
 
 type watchAndRun struct {
 	watcher Watcher
-	runner  Runner
+	runner  *runner
 
 	Verbose bool
 }
@@ -18,13 +20,15 @@ func New(directory string, match []string, exclude []string, commandString strin
 func (w *watchAndRun) WatchAndRun() error {
 	w.watcher.SetVerboseLogging(w.Verbose)
 	w.runner.SetVerboseLogging(w.Verbose)
-
 	c, err := w.watcher.Watch()
 	if err != nil {
 		return err
 	}
 
-	w.runner.Run(c)
+	go w.runner.Run(c)
+
+	// Run the command initially
+	w.runner.run()
 
 	return nil
 }
