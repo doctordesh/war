@@ -1,61 +1,34 @@
 package war
 
 import (
-	"fmt"
-	"os"
-	"strings"
 	"time"
 )
 
 type watchAndRun struct {
 	watcher Watcher
-	runner  Runner
-	command string
-	args    []string
-	env     []string
+	runner  *runner
 
 	Verbose bool
 }
 
 func New(directory string, match []string, exclude []string, commandString string, env []string, delay int, timeout time.Duration) *watchAndRun {
 	w := NewWatcher(directory, match, exclude)
-	r := NewRunner()
-
-	parts := strings.Split(commandString, " ")
-
-	return &watchAndRun{
-		watcher: w,
-		runner:  r,
-		command: parts[0],
-		args:    parts[1:],
-		env:     env,
-		Verbose: false,
-	}
+	r := NewRunner(commandString, env, delay, timeout)
+	return &watchAndRun{w, r, false}
 }
 
 func (w *watchAndRun) WatchAndRun() error {
 	w.watcher.SetVerboseLogging(w.Verbose)
-
+	w.runner.SetVerboseLogging(w.Verbose)
 	c, err := w.watcher.Watch()
 	if err != nil {
 		return err
 	}
 
-	for file := range c {
-		fmt.Printf("WatchAndRun with file: %s\n", file)
-		if w.Verbose {
-			fmt.Printf("file(s) changed: %s\n", file)
-		}
+	go w.runner.Run(c)
 
-		runnable := NewRunnable(
-			w.command,
-			w.args,
-			os.Stdout,
-			os.Stderr,
-		)
-
-		w.runner.Run(runnable)
-	}
+	// Run the command initially
+	w.runner.run()
 
 	return nil
 }

@@ -65,7 +65,7 @@ func (w *watcher) Watch() (<-chan string, error) {
 				}
 
 				// Not interested in chmods
-				if event.Op&fsnotify.Chmod == fsnotify.Chmod {
+				if event.Op == fsnotify.Chmod {
 					continue
 				}
 
@@ -109,8 +109,6 @@ func (w *watcher) Watch() (<-chan string, error) {
 				if w.isMatch(event.Name, w.match) == false {
 					continue
 				}
-
-				colors.Blue("file changed: %s", filename)
 
 				c <- filename
 
