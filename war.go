@@ -1,25 +1,46 @@
 package war
 
 import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/doctordesh/war/colors"
 )
 
 type watchAndRun struct {
-	watcher Watcher
+	watcher *watcher
 	runner  *runner
 
 	Verbose bool
 }
 
-func New(directory string, match []string, exclude []string, commandString string, env []string, delay int, timeout time.Duration) *watchAndRun {
-	w := NewWatcher(directory, match, exclude)
-	r := NewRunner(commandString, env, delay, timeout)
+func New(directoryToWatch string, runnable RunnableTemplate, delay time.Duration) *watchAndRun {
+	w := &watcher{
+		directory: directoryToWatch,
+		match:     []string{},
+		exclude:   []string{},
+		verbose:   false,
+	}
+	r := &runner{
+		runnableTemplate: runnable,
+		delay:            delay,
+	}
+
 	return &watchAndRun{w, r, false}
 }
 
 func (w *watchAndRun) WatchAndRun() error {
-	w.watcher.SetVerboseLogging(w.Verbose)
-	w.runner.SetVerboseLogging(w.Verbose)
+	// w.watcher.SetVerboseLogging(w.Verbose)
+	// w.runner.SetVerboseLogging(w.Verbose)
+
+	// Setup signals
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT)
+
+	// Run
 	c, err := w.watcher.Watch()
 	if err != nil {
 		return err
@@ -27,8 +48,14 @@ func (w *watchAndRun) WatchAndRun() error {
 
 	go w.runner.Run(c)
 
-	// Run the command initially
-	w.runner.run()
+	<-sigs
+
+	fmt.Println()
+
+	// If it's running, stop it. To not leak processes
+	w.runner.Stop()
+
+	colors.Blue("keyboard interrupt detected, quiting...")
 
 	return nil
 }

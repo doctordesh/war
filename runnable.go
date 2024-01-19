@@ -3,9 +3,31 @@ package war
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
+	"syscall"
 )
+
+type RunnableTemplate struct {
+	BinPath string
+	Args    []string
+	Env     []string
+	Dir     string
+	Stdout  io.Writer
+	Stderr  io.Writer
+}
+
+func (self RunnableTemplate) Build() *runnable {
+	cmd := &exec.Cmd{}
+	cmd.Path = self.BinPath
+	cmd.Args = self.Args
+	cmd.Env = append(cmd.Environ(), self.Env...)
+	cmd.Dir = self.Dir
+	cmd.Stdout = self.Stdout
+	cmd.Stderr = self.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	return &runnable{state: RunningStateNotStarted, cmd: cmd}
+}
 
 type RunningState string
 
@@ -15,34 +37,11 @@ const (
 	RunningStateStopped    RunningState = "STOPPED"
 )
 
-type Runnable interface {
-	State() RunningState
-	Start() error
-	Stop() error
-	ExitCode() (int, error)
-}
-
 type runnable struct {
 	cmd *exec.Cmd
 
 	state    RunningState
 	exitCode int
-}
-
-func NewRunnable(cmd string, args []string, stdout, stderr io.Writer) Runnable {
-	command := exec.Command(cmd, args...)
-
-	if stdout == nil {
-		stdout = os.Stdout
-	}
-	if stderr == nil {
-		stderr = os.Stderr
-	}
-
-	command.Stdout = stdout
-	command.Stderr = stderr
-
-	return &runnable{state: RunningStateNotStarted, cmd: command}
 }
 
 func (self *runnable) State() RunningState {
@@ -72,8 +71,7 @@ func (self *runnable) Start() error {
 
 func (self *runnable) Stop() error {
 	if self.state == RunningStateRunning {
-		fmt.Printf("Runnable kills process")
-		err := self.cmd.Process.Kill()
+		err := syscall.Kill(-self.cmd.Process.Pid, syscall.SIGKILL)
 		if err != nil {
 			return fmt.Errorf("could not kill process: %w", err)
 		}
@@ -96,7 +94,11 @@ func (self *runnable) wait() {
 	err := self.cmd.Wait()
 	if err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
-			fmt.Printf("Setting exit code: %+v\n", exiterr.ExitCode())
+			// if exiterr.ExitCode() == -1 {
+			// 	log.Printf("Runnable killed by war")
+			// } else {
+			// 	log.Printf("Setting exit code: %+v\n", exiterr.ExitCode())
+			// }
 			self.exitCode = exiterr.ExitCode()
 		} else {
 			panic(err)

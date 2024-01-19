@@ -4,9 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
+	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/doctordesh/war"
@@ -20,17 +19,16 @@ var usage = func() {
 }
 
 func main() {
-	// flag variables
-	var delay, timeout int
-	var match, exclude string
-	var verbose, boring bool
+	var err error
+	var environment arrayArg
+	var path, cwd string
+	var boring bool
+	var delay time.Duration
 
-	// setup flags
-	flag.IntVar(&delay, "delay", 100, "Time in milliseconds before running command. Events within the delay will reset the delay")
-	flag.IntVar(&timeout, "timeout", 10, "Time in seconds for when WAR will kill the command")
-	// flag.StringVar(&match, "match", "*", "Match files, separate with comma")
-	// flag.StringVar(&exclude, "exclude", "", "Pattern to exclude files, separate with comma")
-	flag.BoolVar(&verbose, "verbose", false, "Verbose output")
+	flag.Var(&environment, "env", "Environment string with key=value pairs")
+	flag.StringVar(&path, "path", ".", "Path to watch files from")
+	flag.StringVar(&cwd, "cwd", ".", "Working directory of the command")
+	flag.DurationVar(&delay, "delay", time.Millisecond*100, "Time before running command. Events within the delay will reset the delay")
 	flag.BoolVar(&boring, "boring", false, "Boring (no colors) output")
 
 	// usage of the program
@@ -41,64 +39,47 @@ func main() {
 	// set the coloring
 	colors.SetColoring(!boring)
 
-	// Validate that we got the path
 	args := flag.Args()
-	if len(args) == 0 {
+	if len(args) < 1 {
 		colors.Red("missing <command> argument")
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	// Warn about unnecessary arguments
-	if len(args) > 1 {
-		colors.Yellow("ignores arguments '%v'", strings.Join(args[1:], "', '"))
+	binPath, err := exec.LookPath(args[0])
+	if err != nil {
+		colors.Red(err.Error())
+		os.Exit(1)
 	}
 
-	// Get the current working directory to know what to watch
-	path, err := os.Getwd()
+	rtpl := war.RunnableTemplate{
+		BinPath: binPath,
+		Args:    args,
+		Env:     environment,
+		Dir:     cwd,
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
+	}
+
+	w := war.New(path, rtpl, time.Second)
+	w.Verbose = true
+
+	err = w.WatchAndRun()
 	if err != nil {
-		colors.Red("could not find current working directory: %v", err)
+		colors.Red("could not start war: %v", err)
 		os.Exit(2)
 	}
-
-	// Extract matches and excludes from the string format
-	matches := splitAndTrim(match)
-	excludes := splitAndTrim(exclude)
-
-	// Build program
-	w := war.New(path, matches, excludes, args[0], os.Environ(), delay, time.Second*time.Duration(timeout))
-	w.Verbose = verbose
-
-	// Setup signals
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
-
-	// Run
-	go func() {
-		err = w.WatchAndRun()
-		if err != nil {
-			colors.Red("could not start war: %v", err)
-			os.Exit(2)
-		}
-	}()
-
-	<-sigs
-
-	fmt.Println()
-	colors.Blue("keyboard interrupt detected, quiting...")
-	os.Exit(0)
 }
 
-func splitAndTrim(s string) []string {
-	parts := strings.Split(s, ",")
-	res := []string{}
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
+// arrayArg is a type to be able to pass multiple flags of the same name, and
+// get them in a list. Only works with strings
+type arrayArg []string
 
-		if parts[i] != "" {
-			res = append(res, parts[i])
-		}
-	}
+func (self *arrayArg) String() string {
+	return strings.Join(*self, " ")
+}
 
-	return res
+func (self *arrayArg) Set(value string) error {
+	*self = append(*self, value)
+	return nil
 }

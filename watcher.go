@@ -18,15 +18,6 @@ type watcher struct {
 	verbose   bool
 }
 
-type Watcher interface {
-	Watch() (<-chan string, error)
-	SetVerboseLogging(bool)
-}
-
-func NewWatcher(directory string, match []string, exclude []string) Watcher {
-	return &watcher{directory, match, exclude, false}
-}
-
 func (w *watcher) SetVerboseLogging(b bool) {
 	w.verbose = b
 }
