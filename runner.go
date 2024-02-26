@@ -1,6 +1,7 @@
 package war
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/doctordesh/war/colors"
@@ -39,7 +40,7 @@ func (r *runner) Run(changesHappened <-chan string) {
 
 			colors.Blue("file changed: %s", filename)
 			if lastEventAt.Add(r.delay).After(time.Now()) {
-				colors.Yellow("ignoring")
+				colors.Yellow(fmt.Sprintf("ignoring %s", filename))
 				continue
 			}
 
