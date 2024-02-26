@@ -54,13 +54,7 @@ func (r *runner) Run(changesHappened <-chan string) {
 				}
 			}
 
-			r.command = r.runnableTemplate.Build()
-			colors.Blue("running command: %s", r.command.cmd.String())
-			err = r.command.Start()
-			if err != nil {
-				panic(err)
-			}
-
+			r.run()
 		default:
 
 			time.Sleep(time.Millisecond * 500)
@@ -83,4 +77,17 @@ func (r *runner) Run(changesHappened <-chan string) {
 			}
 		}
 	}
+}
+
+// run ...
+func (r *runner) run() {
+	var err error
+
+	r.command = r.runnableTemplate.Build()
+	colors.Blue("running command: %s", r.command.cmd.String())
+	err = r.command.Start()
+	if err != nil {
+		panic(err)
+	}
+
 }

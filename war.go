@@ -48,6 +48,9 @@ func (w *watchAndRun) WatchAndRun() error {
 
 	go w.runner.Run(c)
 
+	// Make an initial run
+	w.runner.run()
+
 	<-sigs
 
 	fmt.Println()
