@@ -1,118 +1,94 @@
 package war
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/doctordesh/war/colors"
 )
 
 type runner struct {
-	cmd     string
-	env     []string
-	delay   int
-	timeout time.Duration
-	verbose bool
+	runnableTemplate RunnableTemplate
+	delay            time.Duration
+
+	command *runnable
 }
 
-func NewRunner(cmd string, env []string, delay int, timeout time.Duration) *runner {
-	return &runner{cmd, env, delay, timeout, false}
-}
-
-func (r *runner) Run(c <-chan string) {
-
-	now := func() int {
-		return int(time.Now().UnixNano() / 1000000)
+func (r *runner) Stop() {
+	if r.command == nil {
+		return
 	}
 
-	shouldRun := false
-	timeSinceLastEvent := 0
-	ds := 0
+	err := r.command.Stop()
+	if err != nil {
+		panic(err)
+	}
 
-	doneChan := make(chan struct{})
-	running := false
+}
+
+func (r *runner) Run(changesHappened <-chan string) {
+	var err error
+	lastEventAt := time.Time{}
 
 	for {
-
-		ds = now()
-
-		time.Sleep(time.Millisecond)
-
 		select {
-		case filename, ok := <-c:
+		case filename, ok := <-changesHappened:
 			if !ok {
 				colors.Blue("event channel closed. quitting...")
 				return
 			}
-			if running {
-				continue
-			}
-			shouldRun = true
-			timeSinceLastEvent = 0
+
 			colors.Blue("file changed: %s", filename)
-		case <-doneChan:
-			running = false
+			if lastEventAt.Add(r.delay).After(time.Now()) {
+				colors.Yellow(fmt.Sprintf("ignoring %s", filename))
+				continue
+			}
+
+			lastEventAt = time.Now()
+
+			// If there's already a running command, kill it and start over
+			if r.command != nil {
+				colors.Yellow("restarting command")
+				err = r.command.Stop()
+				if err != nil {
+					panic(err)
+				}
+			}
+
+			r.run()
 		default:
-			if shouldRun == false {
-				continue
+
+			time.Sleep(time.Millisecond * 500)
+
+			if r.command != nil && r.command.State() == RunningStateStopped {
+				code, err := r.command.ExitCode()
+				if err != nil {
+					panic(err)
+				}
+
+				if code < 0 {
+					colors.Red("command killed")
+				} else if code > 0 {
+					colors.Red("command exited with code %d", code)
+				} else {
+					colors.Green("command succesful")
+				}
+
+				r.command = nil
 			}
-
-			// Waiting for delay to trigger
-			if timeSinceLastEvent < r.delay {
-				dt := now() - ds
-				timeSinceLastEvent += dt
-				continue
-			}
-
-			// run and reset
-			if r.verbose {
-				log.Println("runner - delay triggered, running")
-			}
-
-			running = true
-			go func() {
-				r.run()
-				doneChan <- struct{}{}
-			}()
-
-			shouldRun = false
-			timeSinceLastEvent = 0
 		}
 	}
 }
 
-func (r *runner) SetVerboseLogging(b bool) {
-	r.verbose = b
-}
-
+// run ...
 func (r *runner) run() {
-	parts := strings.Split(r.cmd, " ")
+	var err error
 
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
-
-	cmd.Env = append(cmd.Env, r.env...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	colors.Blue("running '%s'", r.cmd)
-
-	err := cmd.Run()
-	if ctx.Err() == context.DeadlineExceeded {
-		colors.Red("command took too long (%d s timeout), killed", r.timeout/time.Second)
-	} else if err != nil {
-		colors.Red("command exited with error: %v", err)
-	} else {
-		colors.Green("command successfull")
+	r.command = r.runnableTemplate.Build()
+	colors.Blue("running command: %s", r.command.cmd.String())
+	err = r.command.Start()
+	if err != nil {
+		panic(err)
 	}
 
-	// Extra line between calls, helps with when skimming
-	fmt.Println()
 }
