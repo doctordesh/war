@@ -71,9 +71,12 @@ func (self *runnable) Start() error {
 
 func (self *runnable) Stop() error {
 	if self.state == RunningStateRunning {
-		err := syscall.Kill(-self.cmd.Process.Pid, syscall.SIGKILL)
+		err := syscall.Kill(-self.cmd.Process.Pid, syscall.SIGINT)
 		if err != nil {
-			return fmt.Errorf("could not kill process: %w", err)
+			err = syscall.Kill(-self.cmd.Process.Pid, syscall.SIGKILL)
+			if err != nil {
+				return fmt.Errorf("could not kill process: %w", err)
+			}
 		}
 	}
 
