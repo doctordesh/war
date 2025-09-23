@@ -20,8 +20,7 @@ type watchAndRun struct {
 func New(directoryToWatch string, runnable RunnableTemplate, delay time.Duration) *watchAndRun {
 	w := &watcher{
 		directory: directoryToWatch,
-		match:     []string{},
-		exclude:   []string{},
+		exclude:   runnable.Excludes,
 		verbose:   false,
 	}
 	r := &runner{

@@ -13,9 +13,9 @@ import (
 
 type watcher struct {
 	directory string
-	match     []string
-	exclude   []string
-	verbose   bool
+	// match     []string
+	exclude []string
+	verbose bool
 }
 
 func (w *watcher) SetVerboseLogging(b bool) {
@@ -55,53 +55,74 @@ func (w *watcher) Watch() (<-chan string, error) {
 					os.Exit(2)
 				}
 
-				// Not interested in chmods
-				if event.Op == fsnotify.Chmod {
-					continue
+				act, err := DecideAction(event, w.directory, nil, nil, os.DirFS(w.directory))
+				if err != nil {
+					colors.Red("could not decide on %s: %s", event.Name, err.Error())
+					os.Exit(2)
 				}
 
-				// Not interested in removals
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
+				switch act {
+				case ActionIgnore:
 					continue
-				}
-
-				// Ignore dot files and files inside dot-directories (.git)
-				if w.isDotFile(event.Name) {
-					continue
-				}
-
-				// Extract filename relative to root watching directory
-				filename := strings.Replace(event.Name, w.directory+"/", "", -1)
-
-				// Dir, add to watchers
-				if w.isDir(event.Name) {
-
-					// If it's not a create, it's irrelevant
-					if event.Op&fsnotify.Create != fsnotify.Create {
-						continue
-					}
-
-					// if it's a dot file, it's irrelevant
-					if w.isDotFile(event.Name) {
-						continue
-					}
-
-					// Add the new dir to the paths that we watch
-					colors.Blue("new directory detected %s", filename)
+				case ActionRun:
+					c <- event.Name
+				case ActionAdd:
+					colors.Blue("new directory detected %s", event.Name)
 					err = notify.Add(event.Name)
 					if err != nil {
-						colors.Red("could not add %s to notifier: %v", filename, err)
+						colors.Red("could not add %s to notifier: %v", event.Name, err)
 						os.Exit(2)
 					}
 
-					continue
 				}
 
-				if w.isMatch(event.Name, w.match) == false {
-					continue
-				}
+				// // Not interested in chmods
+				// if event.Op == fsnotify.Chmod {
+				// 	continue
+				// }
 
-				c <- filename
+				// // Not interested in removals
+				// if event.Op&fsnotify.Remove == fsnotify.Remove {
+				// 	continue
+				// }
+
+				// // Ignore dot files and files inside dot-directories (.git)
+				// if w.isDotFile(event.Name) {
+				// 	continue
+				// }
+
+				// // Extract filename relative to root watching directory
+				// filename := strings.Replace(event.Name, w.directory+"/", "", -1)
+
+				// // Dir, add to watchers
+				// if w.isDir(event.Name) {
+
+				// 	// If it's not a create, it's irrelevant
+				// 	if event.Op&fsnotify.Create != fsnotify.Create {
+				// 		continue
+				// 	}
+
+				// 	// if it's a dot file, it's irrelevant
+				// 	if w.isDotFile(event.Name) {
+				// 		continue
+				// 	}
+
+				// 	// Add the new dir to the paths that we watch
+				// 	colors.Blue("new directory detected %s", filename)
+				// 	err = notify.Add(event.Name)
+				// 	if err != nil {
+				// 		colors.Red("could not add %s to notifier: %v", filename, err)
+				// 		os.Exit(2)
+				// 	}
+
+				// 	continue
+				// }
+
+				// if w.isMatch(event.Name, w.match) == false {
+				// 	continue
+				// }
+
+				// c <- event.Name
 
 			case err, _ := <-notify.Errors:
 				colors.Red("unexpected error from notifier: %v", err)
@@ -165,8 +186,13 @@ func (w *watcher) isDir(path string) bool {
 	return fileInfo.IsDir()
 }
 
-func (w *watcher) isMatch(path string, match []string) bool {
-	return true
+// func (w *watcher) isMatch(path string, match []string) bool {
+// 	return true
+// }
+
+func (w *watcher) shouldIgnore(path string) bool {
+	fmt.Println(path, w.exclude)
+	return false
 }
 
 func (w *watcher) isDotFile(path string) bool {

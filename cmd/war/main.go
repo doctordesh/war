@@ -12,6 +12,8 @@ import (
 	"github.com/doctordesh/war/colors"
 )
 
+const VERSION = "0.1.42-rc14"
+
 var usage = func() {
 	fmt.Println("Usage: war [options] <command-to-run>")
 	fmt.Println("Options:")
@@ -20,21 +22,26 @@ var usage = func() {
 
 func main() {
 	var err error
-	var environment arrayArg
-	var path, cwd string
-	var boring bool
+	var environment, exclude arrayArg
+	var cwd string
+	var boring, version bool
 	var delay time.Duration
 
 	flag.Var(&environment, "env", "Environment string with key=value pairs")
-	flag.StringVar(&path, "path", ".", "Path to watch files from")
-	flag.StringVar(&cwd, "cwd", ".", "Working directory of the command")
+	flag.Var(&exclude, "exclude", "Exclude changes on path, relative to the base path")
 	flag.DurationVar(&delay, "delay", time.Millisecond*100, "Time before running command. Events within the delay will reset the delay")
 	flag.BoolVar(&boring, "boring", false, "Boring (no colors) output")
+	flag.BoolVar(&version, "version", false, "Print version and exit")
 
 	// usage of the program
 	flag.Usage = usage
 
 	flag.Parse()
+
+	if version {
+		fmt.Printf("Version: %s\n", VERSION)
+		os.Exit(0)
+	}
 
 	// set the coloring
 	colors.SetColoring(!boring)
@@ -52,16 +59,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	rtpl := war.RunnableTemplate{
-		BinPath: binPath,
-		Args:    args,
-		Env:     environment,
-		Dir:     cwd,
-		Stdout:  os.Stdout,
-		Stderr:  os.Stderr,
+	cwd, err = os.Getwd()
+	if err != nil {
+		colors.Red(err.Error())
+		os.Exit(1)
 	}
 
-	w := war.New(path, rtpl, time.Second)
+	rtpl := war.RunnableTemplate{
+		BinPath:  binPath,
+		Args:     args,
+		Env:      environment,
+		Excludes: exclude,
+		Dir:      cwd,
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+	}
+
+	w := war.New(cwd, rtpl, time.Second)
 	w.Verbose = true
 
 	err = w.WatchAndRun()

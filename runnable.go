@@ -8,12 +8,13 @@ import (
 )
 
 type RunnableTemplate struct {
-	BinPath string
-	Args    []string
-	Env     []string
-	Dir     string
-	Stdout  io.Writer
-	Stderr  io.Writer
+	BinPath  string
+	Args     []string
+	Env      []string
+	Excludes []string
+	Dir      string
+	Stdout   io.Writer
+	Stderr   io.Writer
 }
 
 func (self RunnableTemplate) Build() *runnable {
