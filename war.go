@@ -17,7 +17,7 @@ type watchAndRun struct {
 	Verbose bool
 }
 
-func New(directoryToWatch string, runnable RunnableTemplate, delay time.Duration) *watchAndRun {
+func New(directoryToWatch string, runnable RunnableTemplate, delay, ignoreChangesFor time.Duration) *watchAndRun {
 	w := &watcher{
 		directory: directoryToWatch,
 		exclude:   runnable.Excludes,
@@ -26,6 +26,7 @@ func New(directoryToWatch string, runnable RunnableTemplate, delay time.Duration
 	r := &runner{
 		runnableTemplate: runnable,
 		delay:            delay,
+		ignoreChangesFor: ignoreChangesFor,
 	}
 
 	return &watchAndRun{w, r, false}

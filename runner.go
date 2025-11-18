@@ -10,6 +10,7 @@ import (
 type runner struct {
 	runnableTemplate RunnableTemplate
 	delay            time.Duration
+	ignoreChangesFor time.Duration
 
 	command *runnable
 }
@@ -39,7 +40,7 @@ func (r *runner) Run(changesHappened <-chan string) {
 			}
 
 			colors.Blue("file changed: %s", filename)
-			if lastEventAt.Add(r.delay).After(time.Now()) {
+			if lastEventAt.Add(r.ignoreChangesFor).After(time.Now()) {
 				colors.Yellow(fmt.Sprintf("ignoring %s", filename))
 				continue
 			}
@@ -85,6 +86,10 @@ func (r *runner) run() {
 	var err error
 
 	r.command = r.runnableTemplate.Build()
+
+	// Delay before running next command
+	time.Sleep(r.delay)
+
 	colors.Blue("running command: %s", r.command.cmd.String())
 	err = r.command.Start()
 	if err != nil {

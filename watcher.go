@@ -55,7 +55,7 @@ func (w *watcher) Watch() (<-chan string, error) {
 					os.Exit(2)
 				}
 
-				act, err := DecideAction(event, w.directory, nil, nil, os.DirFS(w.directory))
+				act, err := DecideAction(event, w.directory, w.exclude, nil, os.DirFS(w.directory))
 				if err != nil {
 					colors.Red("could not decide on %s: %s", event.Name, err.Error())
 					os.Exit(2)

@@ -25,11 +25,12 @@ func main() {
 	var environment, exclude arrayArg
 	var cwd string
 	var boring, version bool
-	var delay time.Duration
+	var delay, ignoreChangesFor time.Duration
 
 	flag.Var(&environment, "env", "Environment string with key=value pairs")
 	flag.Var(&exclude, "exclude", "Exclude changes on path, relative to the base path")
-	flag.DurationVar(&delay, "delay", time.Millisecond*100, "Time before running command. Events within the delay will reset the delay")
+	flag.DurationVar(&delay, "delay", 0, "Time before running command")
+	flag.DurationVar(&ignoreChangesFor, "ignore-changes-for", time.Millisecond*100, "Events within the specified time will be ignored and reset the delay")
 	flag.BoolVar(&boring, "boring", false, "Boring (no colors) output")
 	flag.BoolVar(&version, "version", false, "Print version and exit")
 
@@ -75,7 +76,7 @@ func main() {
 		Stderr:   os.Stderr,
 	}
 
-	w := war.New(cwd, rtpl, time.Second)
+	w := war.New(cwd, rtpl, delay, ignoreChangesFor)
 	w.Verbose = true
 
 	err = w.WatchAndRun()

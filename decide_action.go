@@ -54,6 +54,10 @@ func DecideAction(event fsnotify.Event, basePath string, excludedPaths, excluded
 		return ActionIgnore, nil
 	}
 
+	if isEmacsTempFile(relPath) {
+		return ActionIgnore, nil
+	}
+
 	if isDir(relPath, disk) {
 		if event.Op != fsnotify.Create {
 			return ActionIgnore, nil
@@ -108,4 +112,13 @@ func isDir(path string, disk fs.FS) bool {
 	}
 
 	return fileInfo.IsDir()
+}
+
+func isEmacsTempFile(path string) bool {
+	base := filepath.Base(path)
+	if strings.HasPrefix(base, ".#") {
+		return true
+	}
+
+	return false
 }
